@@ -1,0 +1,113 @@
+
+//实现一个事件
+function Event() {
+    this.events = {};
+}
+//监听
+Event.prototype.on = function(attr, callback) {
+        if (this.events[attr]) {
+            this.events[attr].push(callback);
+        } else {
+            this.events[attr] = [callback];
+        }
+    }
+    //移除监听或者主题分发
+Event.prototype.off = function(attr) {
+        for (let key in this.events) {
+            if (this.events.hasOwnProperty(key) && key === attr) {
+                delete this.events[key];
+            }
+        }
+    }
+    //触发事件
+Event.prototype.emit = function(attr, ...arg) {
+    this.events[attr] && this.events[attr].forEach(function(item) { item(...arg); })
+}
+
+// 观察者构造函数
+function Observer(data) {
+    this.data = data;
+    this.walk(data);
+    this.eventsBus = new Event();
+}
+
+let p = Observer.prototype;
+
+// 此函数用于深层次遍历对象的各个属性
+// 采用的是递归的思路
+// 因为我们要为对象的每一个属性绑定getter和setter
+p.walk = function(obj) {
+    let val;
+    for (let key in obj) {
+        // 这里为什么要用hasOwnProperty进行过滤呢？
+        // 因为for...in 循环会把对象原型链上的所有可枚举属性都循环出来
+        // 而我们想要的仅仅是这个对象本身拥有的属性，所以要这么做。
+        if (obj.hasOwnProperty(key)) {
+            val = obj[key];
+
+            // 这里进行判断，如果还没有遍历到最底层，继续new Observer
+            if (typeof val === 'object') {
+                new Observer(val);
+            }
+
+            this.convert(key, val);
+        }
+    }
+};
+
+p.convert = function(key, val) {
+    let _this = this;
+    Object.defineProperty(this.data, key, {
+        enumerable: true,
+        configurable: true,
+        get: function() {
+            console.log('你访问了' + key);
+            return val 
+        },
+        set: function(newVal) {
+            console.log('你设置了' + key);
+            console.log('新的' + key + ' = ' + newVal)
+            _this.path += key+'\\';
+            if (newVal === val) return;
+            //触发$watch函数
+          //  _this.eventsBus.emit(key, val, newVal);
+            // ob.emit(key, val, newVal);
+            if (typeof(newVal) === 'object') {
+                new Observer(newVal);
+                val = newVal;
+                return
+            }
+            val = newVal
+        }
+    })
+};
+
+p.$watch = function(attr, callback) {
+    this.eventsBus.on(attr, callback);
+    // ob.on(attr, callback);
+}
+
+
+let data = {
+    user: {
+        name: "liangshaofeng",
+        age: "24"
+    },
+    address: {
+        city: "beijing"
+    }
+};
+
+let app2 = new Observer({
+    user: {
+        name: "liangshaofeng",
+        age: "24"
+    },
+    name: 'youngwind',
+    age: 25
+});
+
+// 你需要实现 $watch 这个 API
+app2.$watch('age', function(age) {
+    console.log('我的姓名发生了变化，可能是姓氏变了，也可能是名字变了。')
+});
